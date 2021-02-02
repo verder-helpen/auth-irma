@@ -1,0 +1,17 @@
+[package]
+name = "id-contact-auth-irma"
+version = "0.1.0"
+authors = ["David Venhoek <david@tweedegolf.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rocket = { git = "https://github.com/SergioBenitez/Rocket" }
+rocket_contrib = { git = "https://github.com/SergioBenitez/Rocket" }
+serde = "1.0.123"
+serde_json = "1.0.61"
+strum = "0.20.0"
+strum_macros = "0.20.0"
+reqwest = { version = "0.11.0", features = ["json"] }
+urlencoding = "1.1.1"
