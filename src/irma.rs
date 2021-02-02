@@ -57,26 +57,31 @@ pub struct SpecificAttribute {
 #[serde(untagged)]
 pub enum Attribute {
     Simple(String),
-    _Specific(SpecificAttribute),
+    Specific(SpecificAttribute),
 }
 
 pub type ConDisCon = Vec<Vec<Vec<Attribute>>>;
 
 #[derive(Serialize, Debug, Clone)]
-pub struct IrmaRequest {
-    #[serde(rename = "@context")]
-    pub context: &'static str,
+#[serde(tag = "@context")]
+pub enum IrmaRequest {
+    #[serde(rename = "https://irma.app/ld/request/disclosure/v2")]
+    Disclosure(IrmaDisclosureRequest)
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct IrmaDisclosureRequest {
     pub disclose: ConDisCon,
+    #[serde(rename = "clientReturnUrl")]
+    pub return_url: Option<String>,
 }
 
 impl IrmaRequest {
-    const DISCLOSURE: &'static str = "https://irma.app/ld/request/disclosure/v2";
-
     pub fn disclosure(cdc: ConDisCon) -> Self {
-        IrmaRequest {
-            context: Self::DISCLOSURE,
+        IrmaRequest::Disclosure(IrmaDisclosureRequest {
             disclose: cdc,
-        }
+            return_url: None,
+        })
     }
 
     pub fn disclosure_simple(attribute: String) -> Self {
@@ -170,15 +175,55 @@ impl TryFrom<RawIrmaResult> for IrmaResult {
 pub struct IrmaSession {
     pub qr: String,
     pub token: String,
+    server_url: String,
 }
 
 impl IrmaSession {
-    pub async fn start(request: &IrmaRequest) -> Result<IrmaSession, Error> {
+    pub async fn get_result(&self) -> Result<IrmaResult, Error> {
+        let client = reqwest::Client::new();
+        let session_result: RawIrmaResult = client
+            .get(&format!("{}/session/{}/result", self.server_url, self.token))
+            .send()
+            .await?
+            .json()
+            .await?;
+        
+        IrmaResult::try_from(session_result)
+    }
+}
+
+pub struct IrmaServer {
+    server_url: String,
+    auth_token: Option<String>,
+}
+
+impl IrmaServer {
+    pub fn new(server_url: &str) -> IrmaServer {
+        IrmaServer {
+            server_url: server_url.to_string(),
+            auth_token: None,
+        }
+    }
+
+    pub fn new_with_auth(server_url: &str, auth_token: &str) -> IrmaServer {
+        IrmaServer {
+            server_url: server_url.to_string(),
+            auth_token: Some(auth_token.to_string()),
+        }
+    }
+
+    pub async fn start(&self, request: &IrmaRequest) -> Result<IrmaSession, Error> {
         let client = reqwest::Client::new();
 
-        let session_response: SessionResponse = client
-            .post("http://localhost:8088/session")
-            .json(request)
+        let mut session_request = client
+            .post(&format!("{}/session", self.server_url))
+            .json(request);
+        
+        if let Some(token) = &self.auth_token {
+            session_request = session_request.header("Authorization", token);
+        }
+
+        let session_response: SessionResponse = session_request
             .send()
             .await?
             .json()
@@ -189,18 +234,7 @@ impl IrmaSession {
         Ok(IrmaSession {
             qr,
             token: session_response.token,
+            server_url: self.server_url.clone(),
         })
-    }
-
-    pub async fn get_result(&self) -> Result<IrmaResult, Error> {
-        let client = reqwest::Client::new();
-        let session_result: RawIrmaResult = client
-            .get(&format!("http://localhost:8088/session/{}/result", self.token))
-            .send()
-            .await?
-            .json()
-            .await?;
-        
-        IrmaResult::try_from(session_result)
     }
 }
