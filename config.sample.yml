@@ -1,0 +1,7 @@
+irma_server:
+  url: http://localhost:8088
+
+attributes:
+  email:
+    - pbdf.pbdf.email.email
+    - pbdf.sidn-pbdf.email.email

@@ -66,7 +66,7 @@ pub type ConDisCon = Vec<Vec<Vec<Attribute>>>;
 #[serde(tag = "@context")]
 pub enum IrmaRequest {
     #[serde(rename = "https://irma.app/ld/request/disclosure/v2")]
-    Disclosure(IrmaDisclosureRequest)
+    Disclosure(IrmaDisclosureRequest),
 }
 
 #[derive(Serialize, Debug, Clone)]
@@ -146,9 +146,10 @@ struct RawIrmaResult {
     status: SessionStatus,
     #[serde(rename = "proofStatus")]
     proof_status: ProofStatus,
-    disclosed: Vec<Vec<AttributeResult>>
+    disclosed: Vec<Vec<AttributeResult>>,
 }
 
+#[derive(Debug)]
 pub struct IrmaResult {
     pub disclosed: Vec<Vec<AttributeResult>>,
 }
@@ -160,18 +161,18 @@ impl TryFrom<RawIrmaResult> for IrmaResult {
         match value.status {
             SessionStatus::Cancelled => Err(Error::Cancelled()),
             SessionStatus::Timeout => Err(Error::Timeout()),
-            SessionStatus::Done => {
-                match value.proof_status {
-                    ProofStatus::Valid => Ok(IrmaResult{disclosed: value.disclosed}),
-                    _ => Err(Error::Invalid()),
-                }
-            }
-            _ => Err(Error::Incomplete())
+            SessionStatus::Done => match value.proof_status {
+                ProofStatus::Valid => Ok(IrmaResult {
+                    disclosed: value.disclosed,
+                }),
+                _ => Err(Error::Invalid()),
+            },
+            _ => Err(Error::Incomplete()),
         }
     }
 }
 
-
+#[derive(Debug)]
 pub struct IrmaSession {
     pub qr: String,
     pub token: String,
@@ -182,16 +183,20 @@ impl IrmaSession {
     pub async fn get_result(&self) -> Result<IrmaResult, Error> {
         let client = reqwest::Client::new();
         let session_result: RawIrmaResult = client
-            .get(&format!("{}/session/{}/result", self.server_url, self.token))
+            .get(&format!(
+                "{}/session/{}/result",
+                self.server_url, self.token
+            ))
             .send()
             .await?
             .json()
             .await?;
-        
+
         IrmaResult::try_from(session_result)
     }
 }
 
+#[derive(Debug)]
 pub struct IrmaServer {
     server_url: String,
     auth_token: Option<String>,
@@ -218,17 +223,13 @@ impl IrmaServer {
         let mut session_request = client
             .post(&format!("{}/session", self.server_url))
             .json(request);
-        
+
         if let Some(token) = &self.auth_token {
             session_request = session_request.header("Authorization", token);
         }
 
-        let session_response: SessionResponse = session_request
-            .send()
-            .await?
-            .json()
-            .await?;
-        
+        let session_response: SessionResponse = session_request.send().await?.json().await?;
+
         let qr = serde_json::to_string(&session_response.session_ptr)?;
 
         Ok(IrmaSession {
