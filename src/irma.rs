@@ -89,6 +89,13 @@ impl IrmaRequest {
     }
 }
 
+#[derive(Serialize, Debug, Clone)]
+struct ExtendedIrmaRequest<'a> {
+    #[serde(rename="callbackUrl")]
+    callback_url: &'a str,
+    request: &'a IrmaRequest,
+}
+
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 enum SessionType {
@@ -176,24 +183,6 @@ impl TryFrom<RawIrmaResult> for IrmaResult {
 pub struct IrmaSession {
     pub qr: String,
     pub token: String,
-    server_url: String,
-}
-
-impl IrmaSession {
-    pub async fn get_result(&self) -> Result<IrmaResult, Error> {
-        let client = reqwest::Client::new();
-        let session_result: RawIrmaResult = client
-            .get(&format!(
-                "{}/session/{}/result",
-                self.server_url, self.token
-            ))
-            .send()
-            .await?
-            .json()
-            .await?;
-
-        IrmaResult::try_from(session_result)
-    }
 }
 
 #[derive(Debug)]
@@ -235,7 +224,42 @@ impl IrmaServer {
         Ok(IrmaSession {
             qr,
             token: session_response.token,
-            server_url: self.server_url.clone(),
         })
+    }
+
+    pub async fn start_with_callback(&self, request: &IrmaRequest, callback_url: &str) -> Result<IrmaSession, Error> {
+        let extended_request = ExtendedIrmaRequest{callback_url, request};
+        let client = reqwest::Client::new();
+        let mut session_request = client
+            .post(&format!("{}/session", self.server_url))
+            .json(&extended_request);
+        
+        if let Some(token) = &self.auth_token {
+            session_request = session_request.header("Authorization", token);
+        }
+
+        let session_response: SessionResponse = session_request.send().await?.json().await?;
+
+        let qr = serde_json::to_string(&session_response.session_ptr)?;
+        
+        Ok(IrmaSession {
+            qr,
+            token: session_response.token,
+        })
+    }
+
+    pub async fn get_result(&self, token: &str) -> Result<IrmaResult, Error> {
+        let client = reqwest::Client::new();
+        let session_result: RawIrmaResult = client
+            .get(&format!(
+                "{}/session/{}/result",
+                self.server_url, token
+            ))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        IrmaResult::try_from(session_result)
     }
 }

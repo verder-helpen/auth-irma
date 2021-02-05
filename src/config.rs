@@ -1,12 +1,18 @@
 use serde::Deserialize;
-use std::{collections::HashMap, error::Error as StdError, fmt::Display};
+use std::{collections::HashMap, convert::TryFrom, error::Error as StdError, fmt::Display};
+
+use josekit::{jwe::{ECDH_ES, JweEncrypter, RSA_OAEP}, jws::{ES256, JwsSigner, RS256}};
 
 type AttributeMapping = HashMap<String, Vec<String>>;
 
 #[derive(Debug)]
 pub enum Error {
     UnknownAttribute(String),
+    NotMatching(&'static str),
+    InvalidResponse(&'static str),
     YamlError(serde_yaml::Error),
+    Json(serde_json::Error),
+    JWT(josekit::JoseError),
 }
 
 impl From<serde_yaml::Error> for Error {
@@ -15,11 +21,27 @@ impl From<serde_yaml::Error> for Error {
     }
 }
 
+impl From<serde_json::Error> for Error {
+    fn from(e: serde_json::Error) -> Error {
+        Error::Json(e)
+    }
+}
+
+impl From<josekit::JoseError> for Error {
+    fn from(e: josekit::JoseError) -> Error {
+        Error::JWT(e)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Error::UnknownAttribute(a) => f.write_fmt(format_args!("Unknown attribute {}", a)),
             Error::YamlError(e) => e.fmt(f),
+            Error::NotMatching(desc) => f.write_str(desc),
+            Error::InvalidResponse(desc) => f.write_fmt(format_args!("Invalid irma response: {}", desc)),
+            Error::Json(e) => e.fmt(f),
+            Error::JWT(e) => e.fmt(f),
         }
     }
 }
@@ -28,6 +50,8 @@ impl StdError for Error {
     fn source(&self) -> Option<&(dyn StdError + 'static)> {
         match self {
             Error::YamlError(e) => Some(e),
+            Error::Json(e) => Some(e),
+            Error::JWT(e) => Some(e),
             _ => None,
         }
     }
@@ -49,24 +73,71 @@ impl From<IrmaserverConfig> for super::irma::IrmaServer {
 }
 
 #[derive(Deserialize, Debug)]
+struct InnerKeyConfig {
+    key: String,
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum EncryptionKeyConfig {
+    RSA(InnerKeyConfig),
+    EC(InnerKeyConfig),
+}
+
+impl EncryptionKeyConfig {
+    fn to_encrypter(&self) -> Result<Box<dyn JweEncrypter>, Error> {
+        match self {
+            EncryptionKeyConfig::RSA(key) => Ok(Box::new(RSA_OAEP.encrypter_from_pem(&key.key)?)),
+            EncryptionKeyConfig::EC(key) => Ok(Box::new(ECDH_ES.encrypter_from_pem(&key.key)?)),
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(tag = "type")]
+enum SignKeyConfig {
+    RSA(InnerKeyConfig),
+    EC(InnerKeyConfig),
+}
+
+impl SignKeyConfig {
+    fn to_signer(&self) -> Result<Box<dyn JwsSigner>, Error> {
+        match self {
+            SignKeyConfig::RSA(key) => Ok(Box::new(RS256.signer_from_pem(&key.key)?)),
+            SignKeyConfig::EC(key) => Ok(Box::new(ES256.signer_from_pem(&key.key)?))
+        }
+    }
+}
+
+#[derive(Deserialize, Debug)]
 struct RawConfig {
+    server_url: String,
     attributes: AttributeMapping,
     irma_server: IrmaserverConfig,
+    encryption_pubkey: EncryptionKeyConfig,
+    signing_privkey: SignKeyConfig,
 }
 
 #[derive(Debug, Deserialize)]
-#[serde(from = "RawConfig")]
+#[serde(try_from = "RawConfig")]
 pub struct Config {
+    server_url: String,
     attributes: AttributeMapping,
     irma_server: super::irma::IrmaServer,
+    encrypter: Box<dyn JweEncrypter>,
+    signer: Box<dyn JwsSigner>,
 }
 
-impl From<RawConfig> for Config {
-    fn from(config: RawConfig) -> Config {
-        Config {
+impl TryFrom<RawConfig> for Config {
+    type Error = Error;
+    fn try_from(config: RawConfig) -> Result<Config, Error> {
+        Ok(Config {
+            server_url: config.server_url,
             attributes: config.attributes,
             irma_server: super::irma::IrmaServer::from(config.irma_server),
-        }
+            encrypter: config.encryption_pubkey.to_encrypter()?,
+            signer: config.signing_privkey.to_signer()?,
+        })
     }
 }
 
@@ -74,7 +145,7 @@ impl Config {
     pub fn map_attributes(
         &self,
         attributes: &Vec<String>,
-    ) -> Result<super::irma::ConDisCon, Error> {
+    ) -> Result<crate::irma::ConDisCon, Error> {
         let mut result: super::irma::ConDisCon = vec![];
         for attribute in attributes {
             let mut dis: Vec<Vec<super::irma::Attribute>> = vec![];
@@ -92,8 +163,45 @@ impl Config {
         Ok(result)
     }
 
+    pub fn map_response(
+        &self,
+        attributes: &Vec<String>,
+        response: crate::irma::IrmaResult,
+    ) -> Result<HashMap<String, String>, Error> {
+        if attributes.len() != response.disclosed.len() {
+            return Err(Error::NotMatching("mismatch between request and response"));
+        }
+
+        let mut result : HashMap<String, String> = HashMap::new();
+
+        for i in 0..attributes.len() {
+            if response.disclosed[i].len() != 1 {
+                return Err(Error::InvalidResponse("Incorrect number of attributes in inner conjunction"));
+            }
+            let allowed_irma_attributes = self.attributes.get(&attributes[i]).ok_or_else(|| Error::UnknownAttribute(attributes[i].clone()))?;
+            if !allowed_irma_attributes.contains(&response.disclosed[i][0].id) {
+                return Err(Error::InvalidResponse("Incorrect attribute in inner conjunction"));
+            }
+            result.insert(attributes[i].clone(), response.disclosed[i][0].rawvalue.clone());
+        }
+
+        Ok(result)
+    }
+
     pub fn irma_server(&self) -> &super::irma::IrmaServer {
         &self.irma_server
+    }
+
+    pub fn server_url(&self) -> &str {
+        &self.server_url
+    }
+
+    pub fn encrypter(&self) -> &dyn JweEncrypter {
+        self.encrypter.as_ref()
+    }
+
+    pub fn signer(&self) -> &dyn JwsSigner {
+        self.signer.as_ref()
     }
 
     pub fn from_string(config: &str) -> Result<Config, Error> {
