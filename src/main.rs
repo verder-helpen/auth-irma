@@ -1,6 +1,7 @@
+use askama::Template;
 use idauth::{AuthResult, AuthStatus};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
-use rocket::{get, launch, post, response::Redirect, routes, State};
+use rocket::{get, launch, post, response::content, response::Redirect, routes, State};
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
@@ -18,6 +19,7 @@ enum Error {
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
     JWT(jwe::Error),
+    Template(askama::Error),
 }
 
 impl<'r, 'o: 'r> rocket::response::Responder<'r, 'o> for Error {
@@ -63,6 +65,12 @@ impl From<jwe::Error> for Error {
     }
 }
 
+impl From<askama::Error> for Error {
+    fn from(e: askama::Error) -> Error {
+        Error::Template(e)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -72,6 +80,7 @@ impl Display for Error {
             Error::Utf(e) => e.fmt(f),
             Error::Json(e) => e.fmt(f),
             Error::JWT(e) => e.fmt(f),
+            Error::Template(e) => e.fmt(f),
         }
     }
 }
@@ -85,8 +94,29 @@ impl StdError for Error {
             Error::Utf(e) => Some(e),
             Error::Json(e) => Some(e),
             Error::JWT(e) => Some(e),
+            Error::Template(e) => Some(e),
         }
     }
+}
+
+#[derive(Template)]
+#[template(path = "auth.html", escape = "none")]
+struct AuthTemplate<'a> {
+    continuation: &'a str,
+    qr: &'a str,
+}
+
+#[get("/auth/<qr>/<continuation>")]
+async fn auth_ui(qr: String, continuation: String) -> Result<content::Html<String>, Error> {
+    let continuation = base64::decode(continuation)?;
+    let continuation = std::str::from_utf8(&continuation)?;
+
+    let qr = base64::decode(qr)?;
+    let qr = std::str::from_utf8(&qr)?;
+
+    let template = AuthTemplate { continuation, qr };
+
+    Ok(content::Html(template.render()?))
 }
 
 #[get("/decorated_continue/<attributes>/<continuation>?<token>")]
@@ -108,7 +138,7 @@ async fn decorated_continue(
     let attributes =
         jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
 
-    if continuation.find("?") != None {
+    if continuation.find('?') != None {
         Ok(Redirect::to(format!(
             "{}&attributes={}",
             continuation, attributes
@@ -169,6 +199,7 @@ async fn start_oob(
     let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
         return_url: Some(request.continuation.clone()),
+        augment_return: false,
     });
 
     println!("With attr url");
@@ -187,8 +218,10 @@ async fn start_oob(
 
     Ok(Json(idauth::StartAuthResponse {
         client_url: format!(
-            "https://irma.app/-/session#{}",
-            urlencoding::encode(&session.qr)
+            "{}/auth/{}/{}",
+            config.server_url(),
+            base64::encode(&session.qr),
+            base64::encode(&request.continuation),
         ),
     }))
 }
@@ -209,15 +242,18 @@ async fn start_ib(
 
     let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
-        return_url: Some(continuation_url),
+        return_url: Some(continuation_url.clone()),
+        augment_return: true,
     });
 
     let session = config.irma_server().start(&session_request).await?;
 
     Ok(Json(idauth::StartAuthResponse {
         client_url: format!(
-            "https://irma.app/-/session#{}",
-            urlencoding::encode(&session.qr)
+            "{}/auth/{}/{}",
+            config.server_url(),
+            base64::encode(&session.qr),
+            base64::encode(format!("{}?token={}", continuation_url, session.token)),
         ),
     }))
 }
@@ -240,7 +276,12 @@ fn rocket() -> rocket::Rocket {
     rocket::ignite()
         .mount(
             "/",
-            routes![start_authentication, decorated_continue, session_complete],
+            routes![
+                start_authentication,
+                decorated_continue,
+                session_complete,
+                auth_ui
+            ],
         )
         .manage(config::Config::from_reader(&configfile).expect("Could not read configuration"))
 }

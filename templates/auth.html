@@ -1,0 +1,25 @@
+<html>
+    <head>
+        <title>Login met irma</title>
+        <script src="https://github.com/privacybydesign/irma-frontend-packages/releases/latest/download/irma.js"></script>
+        <script>
+           function init() {
+                const session = irma.newWeb({
+                    debugging: false,
+                    element: "#irma",
+                    session: {
+                        start: false,
+                        result: false,
+                        mapping: {
+                            sessionPtr: () => ({{ qr }}),
+                        }
+                    }
+                }).start()
+                    .then(() => { window.location = "{{ continuation }}"; });
+           }
+        </script>
+    </head>
+    <body onload="init()">
+        <div id="irma"></div>
+    </body>
+</html>

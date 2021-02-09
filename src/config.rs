@@ -147,10 +147,7 @@ impl TryFrom<RawConfig> for Config {
 }
 
 impl Config {
-    pub fn map_attributes(
-        &self,
-        attributes: &[String],
-    ) -> Result<crate::irma::ConDisCon, Error> {
+    pub fn map_attributes(&self, attributes: &[String]) -> Result<crate::irma::ConDisCon, Error> {
         let mut result: super::irma::ConDisCon = vec![];
         for attribute in attributes {
             let mut dis: Vec<Vec<super::irma::Attribute>> = vec![];
@@ -194,10 +191,7 @@ impl Config {
                     "Incorrect attribute in inner conjunction",
                 ));
             }
-            result.insert(
-                attribute.clone(),
-                response.disclosed[i][0].rawvalue.clone(),
-            );
+            result.insert(attribute.clone(), response.disclosed[i][0].rawvalue.clone());
         }
 
         Ok(result)

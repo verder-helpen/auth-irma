@@ -74,6 +74,8 @@ pub struct IrmaDisclosureRequest {
     pub disclose: ConDisCon,
     #[serde(rename = "clientReturnUrl")]
     pub return_url: Option<String>,
+    #[serde(rename = "augmentReturnUrl")]
+    pub augment_return: bool,
 }
 
 impl IrmaRequest {
@@ -81,6 +83,7 @@ impl IrmaRequest {
         IrmaRequest::Disclosure(IrmaDisclosureRequest {
             disclose: cdc,
             return_url: None,
+            augment_return: false,
         })
     }
 
