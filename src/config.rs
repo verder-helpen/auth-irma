@@ -1,7 +1,10 @@
 use serde::Deserialize;
 use std::{collections::HashMap, convert::TryFrom, error::Error as StdError, fmt::Display};
 
-use josekit::{jwe::{ECDH_ES, JweEncrypter, RSA_OAEP}, jws::{ES256, JwsSigner, RS256}};
+use josekit::{
+    jwe::{JweEncrypter, ECDH_ES, RSA_OAEP},
+    jws::{JwsSigner, ES256, RS256},
+};
 
 type AttributeMapping = HashMap<String, Vec<String>>;
 
@@ -39,7 +42,9 @@ impl Display for Error {
             Error::UnknownAttribute(a) => f.write_fmt(format_args!("Unknown attribute {}", a)),
             Error::YamlError(e) => e.fmt(f),
             Error::NotMatching(desc) => f.write_str(desc),
-            Error::InvalidResponse(desc) => f.write_fmt(format_args!("Invalid irma response: {}", desc)),
+            Error::InvalidResponse(desc) => {
+                f.write_fmt(format_args!("Invalid irma response: {}", desc))
+            }
             Error::Json(e) => e.fmt(f),
             Error::JWT(e) => e.fmt(f),
         }
@@ -104,7 +109,7 @@ impl SignKeyConfig {
     fn to_signer(&self) -> Result<Box<dyn JwsSigner>, Error> {
         match self {
             SignKeyConfig::RSA(key) => Ok(Box::new(RS256.signer_from_pem(&key.key)?)),
-            SignKeyConfig::EC(key) => Ok(Box::new(ES256.signer_from_pem(&key.key)?))
+            SignKeyConfig::EC(key) => Ok(Box::new(ES256.signer_from_pem(&key.key)?)),
         }
     }
 }
@@ -144,7 +149,7 @@ impl TryFrom<RawConfig> for Config {
 impl Config {
     pub fn map_attributes(
         &self,
-        attributes: &Vec<String>,
+        attributes: &[String],
     ) -> Result<crate::irma::ConDisCon, Error> {
         let mut result: super::irma::ConDisCon = vec![];
         for attribute in attributes {
@@ -152,7 +157,7 @@ impl Config {
             for request_attribute in self
                 .attributes
                 .get(attribute)
-                .ok_or(Error::UnknownAttribute(attribute.clone()))?
+                .ok_or_else(|| Error::UnknownAttribute(attribute.clone()))?
             {
                 dis.push(vec![super::irma::Attribute::Simple(
                     request_attribute.clone(),
@@ -165,24 +170,34 @@ impl Config {
 
     pub fn map_response(
         &self,
-        attributes: &Vec<String>,
+        attributes: &[String],
         response: crate::irma::IrmaResult,
     ) -> Result<HashMap<String, String>, Error> {
         if attributes.len() != response.disclosed.len() {
             return Err(Error::NotMatching("mismatch between request and response"));
         }
 
-        let mut result : HashMap<String, String> = HashMap::new();
+        let mut result: HashMap<String, String> = HashMap::new();
 
-        for i in 0..attributes.len() {
+        for (i, attribute) in attributes.iter().enumerate() {
             if response.disclosed[i].len() != 1 {
-                return Err(Error::InvalidResponse("Incorrect number of attributes in inner conjunction"));
+                return Err(Error::InvalidResponse(
+                    "Incorrect number of attributes in inner conjunction",
+                ));
             }
-            let allowed_irma_attributes = self.attributes.get(&attributes[i]).ok_or_else(|| Error::UnknownAttribute(attributes[i].clone()))?;
+            let allowed_irma_attributes = self
+                .attributes
+                .get(attribute)
+                .ok_or_else(|| Error::UnknownAttribute(attribute.clone()))?;
             if !allowed_irma_attributes.contains(&response.disclosed[i][0].id) {
-                return Err(Error::InvalidResponse("Incorrect attribute in inner conjunction"));
+                return Err(Error::InvalidResponse(
+                    "Incorrect attribute in inner conjunction",
+                ));
             }
-            result.insert(attributes[i].clone(), response.disclosed[i][0].rawvalue.clone());
+            result.insert(
+                attribute.clone(),
+                response.disclosed[i][0].rawvalue.clone(),
+            );
         }
 
         Ok(result)

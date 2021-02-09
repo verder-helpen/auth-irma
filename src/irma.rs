@@ -91,7 +91,7 @@ impl IrmaRequest {
 
 #[derive(Serialize, Debug, Clone)]
 struct ExtendedIrmaRequest<'a> {
-    #[serde(rename="callbackUrl")]
+    #[serde(rename = "callbackUrl")]
     callback_url: &'a str,
     request: &'a IrmaRequest,
 }
@@ -227,13 +227,20 @@ impl IrmaServer {
         })
     }
 
-    pub async fn start_with_callback(&self, request: &IrmaRequest, callback_url: &str) -> Result<IrmaSession, Error> {
-        let extended_request = ExtendedIrmaRequest{callback_url, request};
+    pub async fn start_with_callback(
+        &self,
+        request: &IrmaRequest,
+        callback_url: &str,
+    ) -> Result<IrmaSession, Error> {
+        let extended_request = ExtendedIrmaRequest {
+            callback_url,
+            request,
+        };
         let client = reqwest::Client::new();
         let mut session_request = client
             .post(&format!("{}/session", self.server_url))
             .json(&extended_request);
-        
+
         if let Some(token) = &self.auth_token {
             session_request = session_request.header("Authorization", token);
         }
@@ -241,7 +248,7 @@ impl IrmaServer {
         let session_response: SessionResponse = session_request.send().await?.json().await?;
 
         let qr = serde_json::to_string(&session_response.session_ptr)?;
-        
+
         Ok(IrmaSession {
             qr,
             token: session_response.token,
@@ -251,10 +258,7 @@ impl IrmaServer {
     pub async fn get_result(&self, token: &str) -> Result<IrmaResult, Error> {
         let client = reqwest::Client::new();
         let session_result: RawIrmaResult = client
-            .get(&format!(
-                "{}/session/{}/result",
-                self.server_url, token
-            ))
+            .get(&format!("{}/session/{}/result", self.server_url, token))
             .send()
             .await?
             .json()

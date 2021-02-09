@@ -1,9 +1,9 @@
-use std::{error::Error as StdError, fmt::Display, fs::File};
-use serde::Deserialize;
 use idauth::{AuthResult, AuthStatus};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
-use rocket::{State, launch, get, post, response::Redirect, routes};
+use rocket::{get, launch, post, response::Redirect, routes, State};
 use rocket_contrib::json::Json;
+use serde::Deserialize;
+use std::{error::Error as StdError, fmt::Display, fs::File};
 
 mod config;
 mod idauth;
@@ -17,7 +17,6 @@ enum Error {
     Decode(base64::DecodeError),
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
-    BadRequest(&'static str),
     JWT(jwe::Error),
 }
 
@@ -53,13 +52,13 @@ impl From<serde_json::Error> for Error {
 }
 
 impl From<std::str::Utf8Error> for Error {
-    fn from (e: std::str::Utf8Error) -> Error {
+    fn from(e: std::str::Utf8Error) -> Error {
         Error::Utf(e)
     }
 }
 
 impl From<jwe::Error> for Error {
-    fn from (e: jwe::Error) -> Error {
+    fn from(e: jwe::Error) -> Error {
         Error::JWT(e)
     }
 }
@@ -72,7 +71,6 @@ impl Display for Error {
             Error::Decode(e) => e.fmt(f),
             Error::Utf(e) => e.fmt(f),
             Error::Json(e) => e.fmt(f),
-            Error::BadRequest(v) => f.write_fmt(format_args!("Bad request: {}", v)),
             Error::JWT(e) => e.fmt(f),
         }
     }
@@ -84,31 +82,42 @@ impl StdError for Error {
             Error::Irma(e) => Some(e),
             Error::Config(e) => Some(e),
             Error::Decode(e) => Some(e),
-            Error::Utf(e)=> Some(e),
+            Error::Utf(e) => Some(e),
             Error::Json(e) => Some(e),
             Error::JWT(e) => Some(e),
-            _ => None,
         }
     }
 }
 
 #[get("/decorated_continue/<attributes>/<continuation>?<token>")]
-async fn decorated_continue(config: State<'_, config::Config>, token: String, attributes:String, continuation: String) -> Result<Redirect, Error> {
+async fn decorated_continue(
+    config: State<'_, config::Config>,
+    token: String,
+    attributes: String,
+    continuation: String,
+) -> Result<Redirect, Error> {
     let continuation = base64::decode(continuation)?;
     let continuation = std::str::from_utf8(&continuation)?;
 
     let attributes = base64::decode(attributes)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
-    
+
     let session_result = config.irma_server().get_result(&token).await?;
-    
+
     let attributes = config.map_response(&attributes, session_result)?;
-    let attributes = jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+    let attributes =
+        jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
 
     if continuation.find("?") != None {
-        Ok(Redirect::to(format!("{}&attributes={}", continuation, attributes)))
+        Ok(Redirect::to(format!(
+            "{}&attributes={}",
+            continuation, attributes
+        )))
     } else {
-        Ok(Redirect::to(format!("{}?attributes={}", continuation, attributes)))
+        Ok(Redirect::to(format!(
+            "{}?attributes={}",
+            continuation, attributes
+        )))
     }
 }
 
@@ -116,8 +125,13 @@ async fn decorated_continue(config: State<'_, config::Config>, token: String, at
 struct IrmaServerPost {
     token: String,
 }
-#[post("/session_complete/<attributes>/<attr_url>", data="<token>")]
-async fn session_complete(config: State<'_, config::Config>, token: Json<IrmaServerPost>, attributes: String, attr_url: String) -> Result<(), Error> {
+#[post("/session_complete/<attributes>/<attr_url>", data = "<token>")]
+async fn session_complete(
+    config: State<'_, config::Config>,
+    token: Json<IrmaServerPost>,
+    attributes: String,
+    attr_url: String,
+) -> Result<(), Error> {
     let attr_url = base64::decode(attr_url)?;
     let attr_url = std::str::from_utf8(&attr_url)?;
 
@@ -127,15 +141,18 @@ async fn session_complete(config: State<'_, config::Config>, token: Json<IrmaSer
     let session_result = config.irma_server().get_result(&token.token).await?;
 
     let attributes = config.map_response(&attributes, session_result)?;
-    let attributes = jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+    let attributes =
+        jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
 
     let client = reqwest::Client::new();
-    let result = client.post(attr_url)
+    let result = client
+        .post(attr_url)
         .json(&AuthResult {
             status: AuthStatus::Succes(),
             attributes: Some(attributes),
         })
-        .send().await;
+        .send()
+        .await;
     if let Err(e) = result {
         // Log only
         println!("Failure reporting results: {}", e);
@@ -144,18 +161,30 @@ async fn session_complete(config: State<'_, config::Config>, token: Json<IrmaSer
 }
 
 // start session with out-of-band return of attributes
-async fn start_oob(config: State<'_, config::Config>, request: &Json<idauth::AuthRequest>, attr_url: &str) -> Result<Json<idauth::StartAuthResponse>, Error> {
-    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest{
+async fn start_oob(
+    config: State<'_, config::Config>,
+    request: &Json<idauth::AuthRequest>,
+    attr_url: &str,
+) -> Result<Json<idauth::StartAuthResponse>, Error> {
+    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
         return_url: Some(request.continuation.clone()),
     });
 
     println!("With attr url");
 
-    let callback_url = format!("{}/session_complete/{}/{}", config.server_url(), base64::encode(&serde_json::to_vec(&request.attributes)?), base64::encode(attr_url));
+    let callback_url = format!(
+        "{}/session_complete/{}/{}",
+        config.server_url(),
+        base64::encode(&serde_json::to_vec(&request.attributes)?),
+        base64::encode(attr_url)
+    );
 
-    let session = config.irma_server().start_with_callback(&session_request, &callback_url).await?;
-    
+    let session = config
+        .irma_server()
+        .start_with_callback(&session_request, &callback_url)
+        .await?;
+
     Ok(Json(idauth::StartAuthResponse {
         client_url: format!(
             "https://irma.app/-/session#{}",
@@ -165,16 +194,24 @@ async fn start_oob(config: State<'_, config::Config>, request: &Json<idauth::Aut
 }
 
 // start session with in-band return of attributes
-async fn start_ib(config: State<'_, config::Config>, request: &Json<idauth::AuthRequest>) -> Result<Json<idauth::StartAuthResponse>, Error> {
-    let continuation_url = format!("{}/decorated_continue/{}/{}", config.server_url(), base64::encode(&serde_json::to_vec(&request.attributes)?), base64::encode(&request.continuation));
+async fn start_ib(
+    config: State<'_, config::Config>,
+    request: &Json<idauth::AuthRequest>,
+) -> Result<Json<idauth::StartAuthResponse>, Error> {
+    let continuation_url = format!(
+        "{}/decorated_continue/{}/{}",
+        config.server_url(),
+        base64::encode(&serde_json::to_vec(&request.attributes)?),
+        base64::encode(&request.continuation)
+    );
 
     println!("Without attr url");
 
-    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest{
+    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
         return_url: Some(continuation_url),
     });
-    
+
     let session = config.irma_server().start(&session_request).await?;
 
     Ok(Json(idauth::StartAuthResponse {
@@ -201,6 +238,9 @@ fn rocket() -> rocket::Rocket {
     let configfile = File::open(std::env::var("CONFIG").expect("No configuration file specified"))
         .expect("Could not open configuration");
     rocket::ignite()
-        .mount("/", routes![start_authentication, decorated_continue])
+        .mount(
+            "/",
+            routes![start_authentication, decorated_continue, session_complete],
+        )
         .manage(config::Config::from_reader(&configfile).expect("Could not read configuration"))
 }
