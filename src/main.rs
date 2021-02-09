@@ -140,13 +140,13 @@ async fn decorated_continue(
 
     if continuation.find('?') != None {
         Ok(Redirect::to(format!(
-            "{}&attributes={}",
+            "{}&attributes={}&status=succes",
             continuation, attributes
         )))
     } else {
         Ok(Redirect::to(format!(
-            "{}?attributes={}",
-            continuation, attributes
+            "{}?attributes={}&status=succes",
+            continuation, attributes            
         )))
     }
 }
