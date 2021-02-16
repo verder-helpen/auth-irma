@@ -1,4 +1,5 @@
-server_url: https://auth-irma.id-contact.test.tweede.golf
+server_url: http://auth-irma.id-contact.test.tweede.golf
+internal_url: http://auth-irma:8000
 
 irma_server:
   url: http://irmaserver:8088

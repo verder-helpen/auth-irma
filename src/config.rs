@@ -117,6 +117,7 @@ impl SignKeyConfig {
 #[derive(Deserialize, Debug)]
 struct RawConfig {
     server_url: String,
+    internal_url: String,
     attributes: AttributeMapping,
     irma_server: IrmaserverConfig,
     encryption_pubkey: EncryptionKeyConfig,
@@ -127,6 +128,7 @@ struct RawConfig {
 #[serde(try_from = "RawConfig")]
 pub struct Config {
     server_url: String,
+    internal_url: String,
     attributes: AttributeMapping,
     irma_server: super::irma::IrmaServer,
     encrypter: Box<dyn JweEncrypter>,
@@ -138,6 +140,7 @@ impl TryFrom<RawConfig> for Config {
     fn try_from(config: RawConfig) -> Result<Config, Error> {
         Ok(Config {
             server_url: config.server_url,
+            internal_url: config.internal_url,
             attributes: config.attributes,
             irma_server: super::irma::IrmaServer::from(config.irma_server),
             encrypter: config.encryption_pubkey.to_encrypter()?,
@@ -203,6 +206,10 @@ impl Config {
 
     pub fn server_url(&self) -> &str {
         &self.server_url
+    }
+
+    pub fn internal_url(&self) -> &str {
+        &self.internal_url
     }
 
     pub fn encrypter(&self) -> &dyn JweEncrypter {

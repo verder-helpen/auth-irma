@@ -206,7 +206,7 @@ async fn start_oob(
 
     let callback_url = format!(
         "{}/session_complete/{}/{}",
-        config.server_url(),
+        config.internal_url(),
         base64::encode(&serde_json::to_vec(&request.attributes)?),
         base64::encode(attr_url)
     );
