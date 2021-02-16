@@ -178,7 +178,7 @@ async fn session_complete(
     let result = client
         .post(attr_url)
         .json(&AuthResult {
-            status: AuthStatus::Succes(),
+            status: AuthStatus::Succes,
             attributes: Some(attributes),
         })
         .send()

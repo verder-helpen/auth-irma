@@ -15,9 +15,9 @@ pub struct StartAuthResponse {
 #[derive(Debug, Serialize, Deserialize)]
 pub enum AuthStatus {
     #[serde(rename = "succes")]
-    Succes(),
+    Succes,
     #[serde(rename = "failed")]
-    Failed(),
+    Failed,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
