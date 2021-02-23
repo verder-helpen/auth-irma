@@ -1,5 +1,5 @@
 use askama::Template;
-use idauth::{AuthResult, AuthStatus};
+use id_contact_proto::{StartAuthRequest, StartAuthResponse, AuthResult, AuthStatus};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
 use rocket::{get, launch, post, response::content, response::Redirect, routes, State};
 use rocket_contrib::json::Json;
@@ -8,7 +8,6 @@ use std::{error::Error as StdError, fmt::Display, fs::File};
 use id_contact_jwe::sign_and_encrypt_attributes;
 
 mod config;
-mod idauth;
 mod irma;
 
 #[derive(Debug)]
@@ -180,6 +179,7 @@ async fn session_complete(
         .json(&AuthResult {
             status: AuthStatus::Succes,
             attributes: Some(attributes),
+            session_url: None
         })
         .send()
         .await;
@@ -193,9 +193,9 @@ async fn session_complete(
 // start session with out-of-band return of attributes
 async fn start_oob(
     config: State<'_, config::Config>,
-    request: &Json<idauth::AuthRequest>,
+    request: &Json<StartAuthRequest>,
     attr_url: &str,
-) -> Result<Json<idauth::StartAuthResponse>, Error> {
+) -> Result<Json<StartAuthResponse>, Error> {
     let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
         return_url: Some(request.continuation.clone()),
@@ -216,7 +216,7 @@ async fn start_oob(
         .start_with_callback(&session_request, &callback_url)
         .await?;
 
-    Ok(Json(idauth::StartAuthResponse {
+    Ok(Json(StartAuthResponse {
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
@@ -229,8 +229,8 @@ async fn start_oob(
 // start session with in-band return of attributes
 async fn start_ib(
     config: State<'_, config::Config>,
-    request: &Json<idauth::AuthRequest>,
-) -> Result<Json<idauth::StartAuthResponse>, Error> {
+    request: &Json<StartAuthRequest>,
+) -> Result<Json<StartAuthResponse>, Error> {
     let continuation_url = format!(
         "{}/decorated_continue/{}/{}",
         config.server_url(),
@@ -248,7 +248,7 @@ async fn start_ib(
 
     let session = config.irma_server().start(&session_request).await?;
 
-    Ok(Json(idauth::StartAuthResponse {
+    Ok(Json(StartAuthResponse {
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
@@ -261,8 +261,8 @@ async fn start_ib(
 #[post("/start_authentication", data = "<request>")]
 async fn start_authentication(
     config: State<'_, config::Config>,
-    request: Json<idauth::AuthRequest>,
-) -> Result<Json<idauth::StartAuthResponse>, Error> {
+    request: Json<StartAuthRequest>,
+) -> Result<Json<StartAuthResponse>, Error> {
     match &request.attr_url {
         Some(attr_url) => start_oob(config, &request, attr_url).await,
         None => start_ib(config, &request).await,
