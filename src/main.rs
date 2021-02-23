@@ -5,11 +5,11 @@ use rocket::{get, launch, post, response::content, response::Redirect, routes, S
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
+use id_contact_jwe::sign_and_encrypt_attributes;
 
 mod config;
 mod idauth;
 mod irma;
-mod jwe;
 
 #[derive(Debug)]
 enum Error {
@@ -18,7 +18,7 @@ enum Error {
     Decode(base64::DecodeError),
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
-    JWT(jwe::Error),
+    JWT(id_contact_jwe::Error),
     Template(askama::Error),
 }
 
@@ -59,8 +59,8 @@ impl From<std::str::Utf8Error> for Error {
     }
 }
 
-impl From<jwe::Error> for Error {
-    fn from(e: jwe::Error) -> Error {
+impl From<id_contact_jwe::Error> for Error {
+    fn from(e: id_contact_jwe::Error) -> Error {
         Error::JWT(e)
     }
 }
@@ -136,7 +136,7 @@ async fn decorated_continue(
 
     let attributes = config.map_response(&attributes, session_result)?;
     let attributes =
-        jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+        sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
 
     if continuation.find('?') != None {
         Ok(Redirect::to(format!(
@@ -172,7 +172,7 @@ async fn session_complete(
 
     let attributes = config.map_response(&attributes, session_result)?;
     let attributes =
-        jwe::sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+        sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
 
     let client = reqwest::Client::new();
     let result = client
