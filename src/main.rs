@@ -1,11 +1,11 @@
 use askama::Template;
-use id_contact_proto::{StartAuthRequest, StartAuthResponse, AuthResult, AuthStatus};
+use id_contact_jwt::sign_and_encrypt_auth_result;
+use id_contact_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
 use rocket::{get, launch, post, response::content, response::Redirect, routes, State};
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
-use id_contact_jwe::sign_and_encrypt_attributes;
 
 mod config;
 mod irma;
@@ -17,7 +17,7 @@ enum Error {
     Decode(base64::DecodeError),
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
-    JWT(id_contact_jwe::Error),
+    JWT(id_contact_jwt::Error),
     Template(askama::Error),
 }
 
@@ -58,8 +58,8 @@ impl From<std::str::Utf8Error> for Error {
     }
 }
 
-impl From<id_contact_jwe::Error> for Error {
-    fn from(e: id_contact_jwe::Error) -> Error {
+impl From<id_contact_jwt::Error> for Error {
+    fn from(e: id_contact_jwt::Error) -> Error {
         Error::JWT(e)
     }
 }
@@ -133,19 +133,24 @@ async fn decorated_continue(
 
     let session_result = config.irma_server().get_result(&token).await?;
 
-    let attributes = config.map_response(&attributes, session_result)?;
-    let attributes =
-        sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+    //let attributes = config.map_response(&attributes, session_result)?;
+    let auth_result = AuthResult {
+        status: AuthStatus::Succes,
+        attributes: Some(config.map_response(&attributes, session_result)?),
+        session_url: None,
+    };
+    let auth_result =
+        sign_and_encrypt_auth_result(&auth_result, config.signer(), config.encrypter())?;
 
     if continuation.find('?') != None {
         Ok(Redirect::to(format!(
-            "{}&attributes={}&status=succes",
-            continuation, attributes
+            "{}&result={}",
+            continuation, auth_result
         )))
     } else {
         Ok(Redirect::to(format!(
-            "{}?attributes={}&status=succes",
-            continuation, attributes            
+            "{}?result={}",
+            continuation, auth_result
         )))
     }
 }
@@ -169,18 +174,19 @@ async fn session_complete(
 
     let session_result = config.irma_server().get_result(&token.token).await?;
 
-    let attributes = config.map_response(&attributes, session_result)?;
-    let attributes =
-        sign_and_encrypt_attributes(&attributes, config.signer(), config.encrypter())?;
+    let auth_result = AuthResult {
+        status: AuthStatus::Succes,
+        attributes: Some(config.map_response(&attributes, session_result)?),
+        session_url: None,
+    };
+    let auth_result =
+        sign_and_encrypt_auth_result(&auth_result, config.signer(), config.encrypter())?;
 
     let client = reqwest::Client::new();
     let result = client
         .post(attr_url)
-        .json(&AuthResult {
-            status: AuthStatus::Succes,
-            attributes: Some(attributes),
-            session_url: None
-        })
+        .header("Content-Type", "application/jwt")
+        .body(auth_result)
         .send()
         .await;
     if let Err(e) = result {
