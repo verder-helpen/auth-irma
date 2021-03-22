@@ -1,4 +1,5 @@
 use askama::Template;
+use base64::URL_SAFE;
 use id_contact_jwt::sign_and_encrypt_auth_result;
 use id_contact_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
@@ -107,10 +108,10 @@ struct AuthTemplate<'a> {
 
 #[get("/auth/<qr>/<continuation>")]
 async fn auth_ui(qr: String, continuation: String) -> Result<content::Html<String>, Error> {
-    let continuation = base64::decode(continuation)?;
+    let continuation = base64::decode_config(continuation, URL_SAFE)?;
     let continuation = std::str::from_utf8(&continuation)?;
 
-    let qr = base64::decode(qr)?;
+    let qr = base64::decode_config(qr, URL_SAFE)?;
     let qr = std::str::from_utf8(&qr)?;
 
     let template = AuthTemplate { continuation, qr };
@@ -125,10 +126,10 @@ async fn decorated_continue(
     attributes: String,
     continuation: String,
 ) -> Result<Redirect, Error> {
-    let continuation = base64::decode(continuation)?;
+    let continuation = base64::decode_config(continuation, URL_SAFE)?;
     let continuation = std::str::from_utf8(&continuation)?;
 
-    let attributes = base64::decode(attributes)?;
+    let attributes = base64::decode_config(attributes,URL_SAFE)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
 
     let session_result = config.irma_server().get_result(&token).await?;
@@ -166,10 +167,10 @@ async fn session_complete(
     attributes: String,
     attr_url: String,
 ) -> Result<(), Error> {
-    let attr_url = base64::decode(attr_url)?;
+    let attr_url = base64::decode_config(attr_url, URL_SAFE)?;
     let attr_url = std::str::from_utf8(&attr_url)?;
 
-    let attributes = base64::decode(attributes)?;
+    let attributes = base64::decode_config(attributes, URL_SAFE)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
 
     let session_result = config.irma_server().get_result(&token.token).await?;
@@ -213,8 +214,8 @@ async fn start_oob(
     let callback_url = format!(
         "{}/session_complete/{}/{}",
         config.internal_url(),
-        base64::encode(&serde_json::to_vec(&request.attributes)?),
-        base64::encode(attr_url)
+        base64::encode_config(&serde_json::to_vec(&request.attributes)?, URL_SAFE),
+        base64::encode_config(attr_url, URL_SAFE)
     );
 
     let session = config
@@ -226,8 +227,8 @@ async fn start_oob(
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
-            base64::encode(&session.qr),
-            base64::encode(&request.continuation),
+            base64::encode_config(&session.qr, URL_SAFE),
+            base64::encode_config(&request.continuation, URL_SAFE),
         ),
     }))
 }
@@ -240,8 +241,8 @@ async fn start_ib(
     let continuation_url = format!(
         "{}/decorated_continue/{}/{}",
         config.server_url(),
-        base64::encode(&serde_json::to_vec(&request.attributes)?),
-        base64::encode(&request.continuation)
+        base64::encode_config(&serde_json::to_vec(&request.attributes)?, URL_SAFE),
+        base64::encode_config(&request.continuation, URL_SAFE)
     );
 
     println!("Without attr url");
@@ -258,8 +259,8 @@ async fn start_ib(
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
-            base64::encode(&session.qr),
-            base64::encode(format!("{}?token={}", continuation_url, session.token)),
+            base64::encode_config(&session.qr, URL_SAFE),
+            base64::encode_config(format!("{}?token={}", continuation_url, session.token), URL_SAFE),
         ),
     }))
 }
