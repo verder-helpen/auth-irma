@@ -8,6 +8,11 @@ attributes:
   email:
     - pbdf.pbdf.email.email
     - pbdf.sidn-pbdf.email.email
+  fullname:
+   - irma-demo.MijnOverheid.fullName
+  city:
+   - irma-demo.MijnOverheid.address.city
+
 
 encryption_pubkey:
   type: RSA
