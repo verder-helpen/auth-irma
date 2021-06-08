@@ -104,6 +104,7 @@ impl StdError for Error {
 struct AuthTemplate<'a> {
     continuation: &'a str,
     qr: &'a str,
+    release: bool,
 }
 
 #[get("/auth/<qr>/<continuation>")]
@@ -113,8 +114,9 @@ async fn auth_ui(qr: String, continuation: String) -> Result<content::Html<Strin
 
     let qr = base64::decode_config(qr, URL_SAFE)?;
     let qr = std::str::from_utf8(&qr)?;
+    let release = cfg!(not(debug_assertions));
 
-    let template = AuthTemplate { continuation, qr };
+    let template = AuthTemplate { continuation, qr, release };
 
     Ok(content::Html(template.render()?))
 }

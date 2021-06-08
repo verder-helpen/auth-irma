@@ -18,6 +18,19 @@
                     .then(() => { window.location = "{{ continuation }}"; });
            }
         </script>
+        {% if release -%}
+        <script type="text/javascript">
+            /*<![CDATA[*/
+            (function () {
+              var sz = document.createElement('script');
+              sz.type = 'text/javascript'; sz.async = true;
+              sz.src = '//siteimproveanalytics.com/js/siteanalyze_6006118.js';
+              var s = document.getElementsByTagName('script')[0];
+              s.parentNode.insertBefore(sz, s);
+            })();
+              /*]]>*/
+          </script>
+        {% endif -%}
     </head>
     <body onload="init()">
         <h2>Open de IRMA-app en scan de code</h2>
