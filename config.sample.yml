@@ -1,4 +1,4 @@
-server_url: http://auth-irma.idcontact.test.tweede.golf
+server_url: https://auth-irma.idcontact.test.tweede.golf
 internal_url: http://auth-irma:8000
 
 irma_server:
@@ -8,6 +8,11 @@ attributes:
   email:
     - pbdf.pbdf.email.email
     - pbdf.sidn-pbdf.email.email
+  fullname:
+   - irma-demo.MijnOverheid.fullName
+  city:
+   - irma-demo.MijnOverheid.address.city
+
 
 encryption_pubkey:
   type: RSA
