@@ -79,6 +79,7 @@ impl From<IrmaserverConfig> for super::irma::IrmaServer {
 struct RawConfig {
     server_url: String,
     internal_url: String,
+    ui_irma_url: String,
     attributes: AttributeMapping,
     irma_server: IrmaserverConfig,
     encryption_pubkey: EncryptionKeyConfig,
@@ -90,6 +91,7 @@ struct RawConfig {
 pub struct Config {
     server_url: String,
     internal_url: String,
+    ui_irma_url: String,
     attributes: AttributeMapping,
     irma_server: super::irma::IrmaServer,
     encrypter: Box<dyn JweEncrypter>,
@@ -103,6 +105,7 @@ impl TryFrom<RawConfig> for Config {
         Ok(Config {
             server_url: config.server_url,
             internal_url: config.internal_url,
+            ui_irma_url: config.ui_irma_url,
             attributes: config.attributes,
             irma_server: super::irma::IrmaServer::from(config.irma_server),
             encrypter: Box::<dyn JweEncrypter>::try_from(config.encryption_pubkey)?,
@@ -172,6 +175,10 @@ impl Config {
 
     pub fn internal_url(&self) -> &str {
         &self.internal_url
+    }
+
+    pub fn ui_irma_url(&self) -> &str {
+        &self.ui_irma_url
     }
 
     pub fn encrypter(&self) -> &dyn JweEncrypter {
