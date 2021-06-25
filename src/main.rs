@@ -112,7 +112,7 @@ struct AuthTemplate<'a> {
     release: bool,
 }
 
-fn sign_irma_params(continuation: &str, qr: &str, config: &State<'_, config::Config>,) -> String {
+fn sign_irma_params(continuation: &str, qr: &str, config: &config::Config) -> String {
     let mut payload = JwtPayload::new();
     payload.set_issued_at(&std::time::SystemTime::now());
     payload.set_claim("continuation", Some(serde_json::to_value(continuation).unwrap())).unwrap();
