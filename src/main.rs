@@ -115,17 +115,24 @@ struct AuthTemplate<'a> {
 fn sign_irma_params(continuation: &str, qr: &str, config: &config::Config) -> String {
     let mut payload = JwtPayload::new();
     payload.set_issued_at(&std::time::SystemTime::now());
-    payload.set_claim("continuation", Some(serde_json::to_value(continuation).unwrap())).unwrap();
-    payload.set_claim("qr", Some(serde_json::to_value(qr).unwrap())).unwrap();
-    jwt::encode_with_signer(
-        &payload,
-        &JwsHeader::new(),
-        config.signer(),
-    ).unwrap()
+    payload
+        .set_claim(
+            "continuation",
+            Some(serde_json::to_value(continuation).unwrap()),
+        )
+        .unwrap();
+    payload
+        .set_claim("qr", Some(serde_json::to_value(qr).unwrap()))
+        .unwrap();
+    jwt::encode_with_signer(&payload, &JwsHeader::new(), config.signer()).unwrap()
 }
 
 #[get("/auth/<qr>/<continuation>")]
-async fn auth_ui(config: State<'_, config::Config>, qr: String, continuation: String) -> Result<Redirect, Error> {
+async fn auth_ui(
+    config: State<'_, config::Config>,
+    qr: String,
+    continuation: String,
+) -> Result<Redirect, Error> {
     let continuation = base64::decode_config(continuation, URL_SAFE)?;
     let continuation = std::str::from_utf8(&continuation)?;
 
@@ -134,11 +141,9 @@ async fn auth_ui(config: State<'_, config::Config>, qr: String, continuation: St
 
     let token = sign_irma_params(continuation, qr, &config);
 
-    Ok(Redirect::to(format!(
-        "{}?{}",
-        config.ui_irma_url(),
-        &token,
-    )))
+    Ok(Redirect::to(
+        format!("{}?{}", config.ui_irma_url(), &token,),
+    ))
 }
 
 #[get("/decorated_continue/<attributes>/<continuation>?<token>")]
@@ -151,7 +156,7 @@ async fn decorated_continue(
     let continuation = base64::decode_config(continuation, URL_SAFE)?;
     let continuation = std::str::from_utf8(&continuation)?;
 
-    let attributes = base64::decode_config(attributes,URL_SAFE)?;
+    let attributes = base64::decode_config(attributes, URL_SAFE)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
 
     let session_result = config.irma_server().get_result(&token).await?;
@@ -282,7 +287,10 @@ async fn start_ib(
             "{}/auth/{}/{}",
             config.server_url(),
             base64::encode_config(&session.qr, URL_SAFE),
-            base64::encode_config(format!("{}?token={}", continuation_url, session.token), URL_SAFE),
+            base64::encode_config(
+                format!("{}?token={}", continuation_url, session.token),
+                URL_SAFE
+            ),
         ),
     }))
 }
