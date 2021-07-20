@@ -10,10 +10,9 @@ attributes:
     - pbdf.pbdf.email.email
     - pbdf.sidn-pbdf.email.email
   fullname:
-   - irma-demo.MijnOverheid.fullName
+    - irma-demo.gemeente.personalData.fullname
   city:
-   - irma-demo.MijnOverheid.address.city
-
+    - irma-demo.gemeente.address.city
 
 encryption_pubkey:
   type: RSA
