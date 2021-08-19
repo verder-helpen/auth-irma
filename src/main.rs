@@ -3,8 +3,7 @@ use base64::URL_SAFE;
 use id_contact_jwt::sign_and_encrypt_auth_result;
 use id_contact_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
-use rocket::{get, launch, post, response::Redirect, routes, State};
-use rocket_contrib::json::Json;
+use rocket::{get, launch, post, response::Redirect, routes, serde::json::Json, State};
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
 
@@ -128,7 +127,7 @@ fn sign_irma_params(continuation: &str, qr: &str, config: &config::Config) -> St
 
 #[get("/auth/<qr>/<continuation>")]
 async fn auth_ui(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     qr: String,
     continuation: String,
 ) -> Result<Redirect, Error> {
@@ -138,7 +137,7 @@ async fn auth_ui(
     let qr = base64::decode_config(qr, URL_SAFE)?;
     let qr = std::str::from_utf8(&qr)?;
 
-    let token = sign_irma_params(continuation, qr, &config);
+    let token = sign_irma_params(continuation, qr, config);
 
     Ok(Redirect::to(
         format!("{}?{}", config.ui_irma_url(), &token,),
@@ -147,7 +146,7 @@ async fn auth_ui(
 
 #[get("/decorated_continue/<attributes>/<continuation>?<token>")]
 async fn decorated_continue(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     token: String,
     attributes: String,
     continuation: String,
@@ -188,7 +187,7 @@ struct IrmaServerPost {
 }
 #[post("/session_complete/<attributes>/<attr_url>", data = "<token>")]
 async fn session_complete(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     token: Json<IrmaServerPost>,
     attributes: String,
     attr_url: String,
@@ -225,7 +224,7 @@ async fn session_complete(
 
 // start session with out-of-band return of attributes
 async fn start_oob(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     request: &Json<StartAuthRequest>,
     attr_url: &str,
 ) -> Result<Json<StartAuthResponse>, Error> {
@@ -261,7 +260,7 @@ async fn start_oob(
 
 // start session with in-band return of attributes
 async fn start_ib(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     request: &Json<StartAuthRequest>,
 ) -> Result<Json<StartAuthResponse>, Error> {
     let continuation_url = format!(
@@ -296,7 +295,7 @@ async fn start_ib(
 
 #[post("/start_authentication", data = "<request>")]
 async fn start_authentication(
-    config: State<'_, config::Config>,
+    config: &State<config::Config>,
     request: Json<StartAuthRequest>,
 ) -> Result<Json<StartAuthResponse>, Error> {
     match &request.attr_url {
@@ -306,10 +305,10 @@ async fn start_authentication(
 }
 
 #[launch]
-fn rocket() -> rocket::Rocket {
+fn rocket() -> _ {
     let configfile = File::open(std::env::var("CONFIG").expect("No configuration file specified"))
         .expect("Could not open configuration");
-    rocket::ignite()
+    rocket::build()
         .mount(
             "/",
             routes![
