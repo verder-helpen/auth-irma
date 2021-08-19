@@ -46,18 +46,9 @@ impl StdError for Error {
 }
 
 #[derive(Serialize, Debug, Clone)]
-pub struct SpecificAttribute {
-    #[serde(rename = "type")]
-    pub attribute_type: String,
-    pub value: Option<String>,
-    pub not_null: bool,
-}
-
-#[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum Attribute {
     Simple(String),
-    Specific(SpecificAttribute),
 }
 
 pub type ConDisCon = Vec<Vec<Vec<Attribute>>>;
@@ -76,20 +67,6 @@ pub struct IrmaDisclosureRequest {
     pub return_url: Option<String>,
     #[serde(rename = "augmentReturnUrl")]
     pub augment_return: bool,
-}
-
-impl IrmaRequest {
-    pub fn disclosure(cdc: ConDisCon) -> Self {
-        IrmaRequest::Disclosure(IrmaDisclosureRequest {
-            disclose: cdc,
-            return_url: None,
-            augment_return: false,
-        })
-    }
-
-    pub fn disclosure_simple(attribute: String) -> Self {
-        Self::disclosure(vec![vec![vec![Attribute::Simple(attribute)]]])
-    }
 }
 
 #[derive(Serialize, Debug, Clone)]

@@ -3,7 +3,7 @@ use base64::URL_SAFE;
 use id_contact_jwt::sign_and_encrypt_auth_result;
 use id_contact_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
-use rocket::{get, launch, post, response::content, response::Redirect, routes, State};
+use rocket::{get, launch, post, response::Redirect, routes, State};
 use rocket_contrib::json::Json;
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
@@ -23,7 +23,7 @@ enum Error {
     Decode(base64::DecodeError),
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
-    JWT(id_contact_jwt::Error),
+    Jwt(id_contact_jwt::Error),
     Template(askama::Error),
 }
 
@@ -66,7 +66,7 @@ impl From<std::str::Utf8Error> for Error {
 
 impl From<id_contact_jwt::Error> for Error {
     fn from(e: id_contact_jwt::Error) -> Error {
-        Error::JWT(e)
+        Error::Jwt(e)
     }
 }
 
@@ -84,7 +84,7 @@ impl Display for Error {
             Error::Decode(e) => e.fmt(f),
             Error::Utf(e) => e.fmt(f),
             Error::Json(e) => e.fmt(f),
-            Error::JWT(e) => e.fmt(f),
+            Error::Jwt(e) => e.fmt(f),
             Error::Template(e) => e.fmt(f),
         }
     }
@@ -98,7 +98,7 @@ impl StdError for Error {
             Error::Decode(e) => Some(e),
             Error::Utf(e) => Some(e),
             Error::Json(e) => Some(e),
-            Error::JWT(e) => Some(e),
+            Error::Jwt(e) => Some(e),
             Error::Template(e) => Some(e),
         }
     }
@@ -109,7 +109,6 @@ impl StdError for Error {
 struct AuthTemplate<'a> {
     continuation: &'a str,
     qr: &'a str,
-    release: bool,
 }
 
 fn sign_irma_params(continuation: &str, qr: &str, config: &config::Config) -> String {
