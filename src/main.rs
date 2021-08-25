@@ -318,5 +318,9 @@ fn rocket() -> _ {
                 auth_ui
             ],
         )
-        .manage(config::Config::from_reader(&configfile).expect("Could not read configuration"))
+        .manage(
+            config::Config::from_reader(&configfile)
+                // Drop error value, as it could contain secrets
+                .unwrap_or_else(|_| panic!("Could not read configuration")),
+        )
 }
