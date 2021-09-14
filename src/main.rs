@@ -308,7 +308,10 @@ async fn start_authentication(
 fn rocket() -> _ {
     let configfile = File::open(std::env::var("CONFIG").expect("No configuration file specified"))
         .expect("Could not open configuration");
-    rocket::build()
+    let config = config::Config::from_reader(&configfile)
+        // Drop error value, as it could contain secrets
+        .unwrap_or_else(|_| panic!("Could not read configuration"));
+    let mut base = rocket::build()
         .mount(
             "/",
             routes![
@@ -317,10 +320,11 @@ fn rocket() -> _ {
                 session_complete,
                 auth_ui
             ],
-        )
-        .manage(
-            config::Config::from_reader(&configfile)
-                // Drop error value, as it could contain secrets
-                .unwrap_or_else(|_| panic!("Could not read configuration")),
-        )
+        );
+    if let Some(sentry_dsn) = config.sentry_dsn() {
+        base = base.attach(id_contact_sentry::SentryFairing::new(sentry_dsn, "auth-irma"));
+    }
+    base.manage(
+        config,
+    )
 }
