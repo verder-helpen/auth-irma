@@ -734,6 +734,7 @@ dependencies = [
  "id-contact-proto",
  "id-contact-sentry",
  "josekit",
+ "log",
  "reqwest",
  "rocket 0.5.0-rc.1",
  "serde",

@@ -217,7 +217,7 @@ async fn session_complete(
         .await;
     if let Err(e) = result {
         // Log only
-        println!("Failure reporting results: {}", e);
+        log::error!("Failure reporting results: {}", e);
     }
     Ok(())
 }
@@ -234,7 +234,7 @@ async fn start_oob(
         augment_return: false,
     });
 
-    println!("With attr url");
+    log::trace!("With attr url");
 
     let callback_url = format!(
         "{}/session_complete/{}/{}",
@@ -270,7 +270,7 @@ async fn start_ib(
         base64::encode_config(&request.continuation, URL_SAFE)
     );
 
-    println!("Without attr url");
+    log::trace!("Without attr url");
 
     let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
         disclose: config.map_attributes(&request.attributes)?,
@@ -311,20 +311,20 @@ fn rocket() -> _ {
     let config = config::Config::from_reader(&configfile)
         // Drop error value, as it could contain secrets
         .unwrap_or_else(|_| panic!("Could not read configuration"));
-    let mut base = rocket::build()
-        .mount(
-            "/",
-            routes![
-                start_authentication,
-                decorated_continue,
-                session_complete,
-                auth_ui
-            ],
-        );
+    let mut base = rocket::build().mount(
+        "/",
+        routes![
+            start_authentication,
+            decorated_continue,
+            session_complete,
+            auth_ui
+        ],
+    );
     if let Some(sentry_dsn) = config.sentry_dsn() {
-        base = base.attach(id_contact_sentry::SentryFairing::new(sentry_dsn, "auth-irma"));
+        base = base.attach(id_contact_sentry::SentryFairing::new(
+            sentry_dsn,
+            "auth-irma",
+        ));
     }
-    base.manage(
-        config,
-    )
+    base.manage(config)
 }
