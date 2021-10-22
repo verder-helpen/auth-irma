@@ -1,6 +1,5 @@
 use askama::Template;
 use base64::URL_SAFE;
-use irma::{IrmaDisclosureRequest, IrmaRequest};
 use rocket::{get, launch, post, response::Redirect, routes, serde::json::Json, State};
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
@@ -13,7 +12,6 @@ use josekit::{
 };
 
 mod config;
-mod irma;
 
 #[derive(Debug)]
 enum Error {
@@ -157,7 +155,10 @@ async fn decorated_continue(
     let attributes = base64::decode_config(attributes, URL_SAFE)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
 
-    let session_result = config.irma_server().get_result(&token).await?;
+    let session_result = config
+        .irma_server()
+        .result(&irma::SessionToken(token))
+        .await?;
 
     //let attributes = config.map_response(&attributes, session_result)?;
     let auth_result = AuthResult {
@@ -198,7 +199,10 @@ async fn session_complete(
     let attributes = base64::decode_config(attributes, URL_SAFE)?;
     let attributes = serde_json::from_slice::<Vec<String>>(&attributes)?;
 
-    let session_result = config.irma_server().get_result(&token.token).await?;
+    let session_result = config
+        .irma_server()
+        .result(&irma::SessionToken(token.token.clone()))
+        .await?;
 
     let auth_result = AuthResult {
         status: AuthStatus::Success,
@@ -228,11 +232,10 @@ async fn start_oob(
     request: &Json<StartAuthRequest>,
     attr_url: &str,
 ) -> Result<Json<StartAuthResponse>, Error> {
-    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
-        disclose: config.map_attributes(&request.attributes)?,
-        return_url: Some(request.continuation.clone()),
-        augment_return: false,
-    });
+    let session_request = irma::DisclosureRequestBuilder::new()
+        .add_discons(config.map_attributes(&request.attributes)?)
+        .return_url(request.continuation.clone())
+        .build();
 
     log::trace!("With attr url");
 
@@ -245,14 +248,19 @@ async fn start_oob(
 
     let session = config
         .irma_server()
-        .start_with_callback(&session_request, &callback_url)
+        .request_extended(&irma::ExtendedIrmaRequest {
+            validity: None,
+            timeout: None,
+            callback_url: Some(callback_url),
+            request: session_request,
+        })
         .await?;
 
     Ok(Json(StartAuthResponse {
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
-            base64::encode_config(&session.qr, URL_SAFE),
+            base64::encode_config(&serde_json::to_vec(&session.qr)?, URL_SAFE),
             base64::encode_config(&request.continuation, URL_SAFE),
         ),
     }))
@@ -272,21 +280,20 @@ async fn start_ib(
 
     log::trace!("Without attr url");
 
-    let session_request = IrmaRequest::Disclosure(IrmaDisclosureRequest {
-        disclose: config.map_attributes(&request.attributes)?,
-        return_url: Some(continuation_url.clone()),
-        augment_return: true,
-    });
+    let session_request = irma::DisclosureRequestBuilder::new()
+        .add_discons(config.map_attributes(&request.attributes)?)
+        .augmented_return_url(request.continuation.clone())
+        .build();
 
-    let session = config.irma_server().start(&session_request).await?;
+    let session = config.irma_server().request(&session_request).await?;
 
     Ok(Json(StartAuthResponse {
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
-            base64::encode_config(&session.qr, URL_SAFE),
+            base64::encode_config(&serde_json::to_vec(&session.qr)?, URL_SAFE),
             base64::encode_config(
-                format!("{}?token={}", continuation_url, session.token),
+                format!("{}?token={}", continuation_url, session.token.0),
                 URL_SAFE
             ),
         ),

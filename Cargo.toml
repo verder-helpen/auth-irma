@@ -10,6 +10,7 @@ edition = "2018"
 verder-helpen-sentry = { git = "https://github.com/verder-helpen/verder-helpen-sentry.git" }
 verder-helpen-jwt = { git = "https://github.com/verder-helpen/verder-helpen-jwt.git" }
 verder-helpen-proto = { git = "https://github.com/verder-helpen/verder-helpen-proto.git" }
+irma = { git = "https://github.com/tweedegolf/irmars" }
 log = "0.4.17"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = "1.0.137"

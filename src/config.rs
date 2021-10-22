@@ -8,6 +8,7 @@ type AttributeMapping = HashMap<String, Vec<String>>;
 
 #[derive(Debug)]
 pub enum Error {
+    Irma(irma::Error),
     UnknownAttribute(String),
     NotMatching(&'static str),
     InvalidResponse(&'static str),
@@ -34,6 +35,12 @@ impl From<verder_helpen_jwt::Error> for Error {
     }
 }
 
+impl From<irma::Error> for Error {
+    fn from(e: irma::Error) -> Error {
+        Error::Irma(e)
+    }
+}
+
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -45,6 +52,7 @@ impl Display for Error {
             }
             Error::Json(e) => e.fmt(f),
             Error::Jwt(e) => e.fmt(f),
+            Error::Irma(e) => e.fmt(f),
         }
     }
 }
@@ -55,6 +63,7 @@ impl StdError for Error {
             Error::Yaml(e) => Some(e),
             Error::Json(e) => Some(e),
             Error::Jwt(e) => Some(e),
+            Error::Irma(e) => Some(e),
             _ => None,
         }
     }
@@ -66,12 +75,16 @@ struct IrmaserverConfig {
     auth_token: Option<String>,
 }
 
-impl From<IrmaserverConfig> for super::irma::IrmaServer {
-    fn from(config: IrmaserverConfig) -> Self {
-        match config.auth_token {
-            Some(token) => Self::new_with_auth(&config.url, &token),
-            None => Self::new(&config.url),
-        }
+impl TryFrom<IrmaserverConfig> for irma::IrmaClient {
+    type Error = Error;
+
+    fn try_from(config: IrmaserverConfig) -> Result<Self, Error> {
+        Ok(match config.auth_token {
+            Some(token) => irma::IrmaClientBuilder::new(&config.url)?
+                .token_authentication(token)
+                .build(),
+            None => irma::IrmaClient::new(&config.url)?,
+        })
     }
 }
 
@@ -95,7 +108,7 @@ pub struct Config {
     sentry_dsn: Option<String>,
     ui_irma_url: String,
     attributes: AttributeMapping,
-    irma_server: super::irma::IrmaServer,
+    irma_server: irma::IrmaClient,
     encrypter: Box<dyn JweEncrypter>,
     signer: Box<dyn JwsSigner>,
 }
@@ -110,7 +123,7 @@ impl TryFrom<RawConfig> for Config {
             sentry_dsn: config.sentry_dsn,
             ui_irma_url: config.ui_irma_url,
             attributes: config.attributes,
-            irma_server: super::irma::IrmaServer::from(config.irma_server),
+            irma_server: irma::IrmaClient::try_from(config.irma_server)?,
             encrypter: Box::<dyn JweEncrypter>::try_from(config.encryption_pubkey)?,
             signer: Box::<dyn JwsSigner>::try_from(config.signing_privkey)?,
         })
@@ -118,16 +131,16 @@ impl TryFrom<RawConfig> for Config {
 }
 
 impl Config {
-    pub fn map_attributes(&self, attributes: &[String]) -> Result<crate::irma::ConDisCon, Error> {
-        let mut result: super::irma::ConDisCon = vec![];
+    pub fn map_attributes(&self, attributes: &[String]) -> Result<irma::ConDisCon, Error> {
+        let mut result: irma::ConDisCon = vec![];
         for attribute in attributes {
-            let mut dis: Vec<Vec<super::irma::Attribute>> = vec![];
+            let mut dis: Vec<Vec<irma::AttributeRequest>> = vec![];
             for request_attribute in self
                 .attributes
                 .get(attribute)
                 .ok_or_else(|| Error::UnknownAttribute(attribute.clone()))?
             {
-                dis.push(vec![super::irma::Attribute::Simple(
+                dis.push(vec![irma::AttributeRequest::Simple(
                     request_attribute.clone(),
                 )]);
             }
@@ -139,7 +152,7 @@ impl Config {
     pub fn map_response(
         &self,
         attributes: &[String],
-        response: crate::irma::IrmaResult,
+        response: irma::SessionResult,
     ) -> Result<HashMap<String, String>, Error> {
         if attributes.len() != response.disclosed.len() {
             return Err(Error::NotMatching("mismatch between request and response"));
@@ -157,18 +170,24 @@ impl Config {
                 .attributes
                 .get(attribute)
                 .ok_or_else(|| Error::UnknownAttribute(attribute.clone()))?;
-            if !allowed_irma_attributes.contains(&response.disclosed[i][0].id) {
+            if !allowed_irma_attributes.contains(&response.disclosed[i][0].identifier) {
                 return Err(Error::InvalidResponse(
                     "Incorrect attribute in inner conjunction",
                 ));
             }
-            result.insert(attribute.clone(), response.disclosed[i][0].rawvalue.clone());
+            result.insert(
+                attribute.clone(),
+                response.disclosed[i][0]
+                    .raw_value
+                    .clone()
+                    .unwrap_or_else(|| "".into()),
+            );
         }
 
         Ok(result)
     }
 
-    pub fn irma_server(&self) -> &super::irma::IrmaServer {
+    pub fn irma_server(&self) -> &irma::IrmaClient {
         &self.irma_server
     }
 
