@@ -1,6 +1,6 @@
-# IRMA authentication plugin for ID Contact
+# IRMA authentication plugin for Verder Helpen
 
-this repository contains a IRMA authentication plugin for the ID Contact ecosystem. **IT IS NOT PRODUCTION READY YET**
+This repository contains an IRMA authentication plugin for the Verder Helpen Platform. **NOTE: this plugin is not production ready yet.**
 
 ## Getting started
 To build and run this plugin, do:
@@ -9,4 +9,4 @@ CONFIG=config.sample.yml cargo run
 ```
 
 ## Further reading
-Complete documentation for this plugin can be found in [the general ID Contact documentation](https://docs.idcontact.nl)
+Complete documentation for this plugin can be found in [the general Verder Helpen documentation](https://docs.verderhelpen.nl)

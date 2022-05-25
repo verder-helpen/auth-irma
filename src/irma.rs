@@ -110,7 +110,7 @@ pub enum ProofStatus {
 }
 
 #[derive(
-    Deserialize, Serialize, PartialEq, Debug, strum_macros::EnumString, strum_macros::ToString,
+    Deserialize, Serialize, PartialEq, Debug, strum_macros::EnumString, strum_macros::Display,
 )]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 #[strum(serialize_all = "shouty_snake_case")]

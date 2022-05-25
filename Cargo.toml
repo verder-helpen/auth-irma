@@ -1,5 +1,5 @@
 [package]
-name = "id-contact-auth-irma"
+name = "verder-helpen-auth-irma"
 version = "0.1.0"
 authors = ["David Venhoek <david@tweedegolf.com>"]
 edition = "2018"
@@ -7,18 +7,18 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-id-contact-sentry = { git = "https://github.com/id-contact/id-contact-sentry.git" }
-id-contact-jwt = { git = "https://github.com/id-contact/id-contact-jwt.git" }
-id-contact-proto = { git = "https://github.com/id-contact/id-contact-proto.git" }
-log = "0.4.14"
-rocket = { version = "0.5.0-rc.1", features = ["json"] }
-serde = "1.0.123"
-serde_json = "1.0.61"
-serde_yaml = "0.8.16"
-strum = "0.20.0"
-strum_macros = "0.20.0"
-reqwest = { version = "0.11.0", features = ["json"] }
-urlencoding = "1.1.1"
+verder-helpen-sentry = { git = "https://github.com/verder-helpen/verder-helpen-sentry.git" }
+verder-helpen-jwt = { git = "https://github.com/verder-helpen/verder-helpen-jwt.git" }
+verder-helpen-proto = { git = "https://github.com/verder-helpen/verder-helpen-proto.git" }
+log = "0.4.17"
+rocket = { version = "0.5.0-rc.2", features = ["json"] }
+serde = "1.0.137"
+serde_json = "1.0.81"
+serde_yaml = "0.8.24"
+strum = "0.24.0"
+strum_macros = "0.24.0"
+reqwest = { version = "0.11.10", features = ["json"] }
+urlencoding = "2.1.0"
 base64 = "0.13.0"
-josekit = "0.7.1"
-askama = "0.10.5"
+josekit = "0.8.0"
+askama = "0.11.1"

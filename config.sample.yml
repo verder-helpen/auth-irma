@@ -1,6 +1,6 @@
-server_url: https://auth-irma.idcontact.test.tweede.golf
+server_url: https://auth-irma.verderhelpen.test.tweede.golf
 internal_url: http://auth-irma:8000
-ui_irma_url: https://poc.idcontact.test.tweede.golf/irma-qr/index.html
+ui_irma_url: https://poc.verderhelpen.test.tweede.golf/irma-qr/index.html
 
 irma_server:
   url: http://irmaserver:8088

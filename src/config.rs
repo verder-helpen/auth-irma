@@ -1,6 +1,6 @@
-use id_contact_jwt::{EncryptionKeyConfig, SignKeyConfig};
 use serde::Deserialize;
 use std::{collections::HashMap, convert::TryFrom, error::Error as StdError, fmt::Display};
+use verder_helpen_jwt::{EncryptionKeyConfig, SignKeyConfig};
 
 use josekit::{jwe::JweEncrypter, jws::JwsSigner};
 
@@ -13,7 +13,7 @@ pub enum Error {
     InvalidResponse(&'static str),
     Yaml(serde_yaml::Error),
     Json(serde_json::Error),
-    Jwt(id_contact_jwt::Error),
+    Jwt(verder_helpen_jwt::Error),
 }
 
 impl From<serde_yaml::Error> for Error {
@@ -28,8 +28,8 @@ impl From<serde_json::Error> for Error {
     }
 }
 
-impl From<id_contact_jwt::Error> for Error {
-    fn from(e: id_contact_jwt::Error) -> Error {
+impl From<verder_helpen_jwt::Error> for Error {
+    fn from(e: verder_helpen_jwt::Error) -> Error {
         Error::Jwt(e)
     }
 }
