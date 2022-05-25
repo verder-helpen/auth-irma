@@ -1,11 +1,11 @@
 use askama::Template;
 use base64::URL_SAFE;
-use id_contact_jwt::sign_and_encrypt_auth_result;
-use id_contact_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 use irma::{IrmaDisclosureRequest, IrmaRequest};
 use rocket::{get, launch, post, response::Redirect, routes, serde::json::Json, State};
 use serde::Deserialize;
 use std::{error::Error as StdError, fmt::Display, fs::File};
+use verder_helpen_jwt::sign_and_encrypt_auth_result;
+use verder_helpen_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 
 use josekit::{
     jws::JwsHeader,
@@ -22,7 +22,7 @@ enum Error {
     Decode(base64::DecodeError),
     Json(serde_json::Error),
     Utf(std::str::Utf8Error),
-    Jwt(id_contact_jwt::Error),
+    Jwt(verder_helpen_jwt::Error),
     Template(askama::Error),
 }
 
@@ -63,8 +63,8 @@ impl From<std::str::Utf8Error> for Error {
     }
 }
 
-impl From<id_contact_jwt::Error> for Error {
-    fn from(e: id_contact_jwt::Error) -> Error {
+impl From<verder_helpen_jwt::Error> for Error {
+    fn from(e: verder_helpen_jwt::Error) -> Error {
         Error::Jwt(e)
     }
 }
@@ -161,7 +161,7 @@ async fn decorated_continue(
 
     //let attributes = config.map_response(&attributes, session_result)?;
     let auth_result = AuthResult {
-        status: AuthStatus::Succes,
+        status: AuthStatus::Success,
         attributes: Some(config.map_response(&attributes, session_result)?),
         session_url: None,
     };
@@ -201,7 +201,7 @@ async fn session_complete(
     let session_result = config.irma_server().get_result(&token.token).await?;
 
     let auth_result = AuthResult {
-        status: AuthStatus::Succes,
+        status: AuthStatus::Success,
         attributes: Some(config.map_response(&attributes, session_result)?),
         session_url: None,
     };
@@ -321,7 +321,7 @@ fn rocket() -> _ {
         ],
     );
     if let Some(sentry_dsn) = config.sentry_dsn() {
-        base = base.attach(id_contact_sentry::SentryFairing::new(
+        base = base.attach(verder_helpen_sentry::SentryFairing::new(
             sentry_dsn,
             "auth-irma",
         ));
