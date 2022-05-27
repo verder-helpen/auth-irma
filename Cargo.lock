@@ -799,6 +799,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
+name = "irma"
+version = "0.2.1"
+source = "git+https://github.com/tweedegolf/irmars#315749baf9ac9edb1c714a1b8cccfe2dc3e6a574"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "url",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2125,6 +2137,7 @@ version = "0.1.0"
 dependencies = [
  "askama",
  "base64",
+ "irma",
  "josekit",
  "log",
  "reqwest",
