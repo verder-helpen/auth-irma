@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-verder-helpen-sentry = { git = "https://github.com/verder-helpen/verder-helpen-sentry.git" }
+verder-helpen-sentry = { git = "https://github.com/verder-helpen/verder-helpen-sentry.git", optional = true }
 verder-helpen-jwt = { git = "https://github.com/verder-helpen/verder-helpen-jwt.git" }
 verder-helpen-proto = { git = "https://github.com/verder-helpen/verder-helpen-proto.git" }
 log = "0.4.17"
@@ -22,3 +22,6 @@ urlencoding = "2.1.0"
 base64 = "0.13.0"
 josekit = "0.8.0"
 askama = "0.11.1"
+
+[features]
+sentry = ["dep:verder-helpen-sentry"]

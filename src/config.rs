@@ -79,6 +79,7 @@ impl From<IrmaserverConfig> for super::irma::IrmaServer {
 struct RawConfig {
     server_url: String,
     internal_url: String,
+    #[cfg(feature = "sentry")]
     sentry_dsn: Option<String>,
     ui_irma_url: String,
     attributes: AttributeMapping,
@@ -92,6 +93,7 @@ struct RawConfig {
 pub struct Config {
     server_url: String,
     internal_url: String,
+    #[cfg(feature = "sentry")]
     sentry_dsn: Option<String>,
     ui_irma_url: String,
     attributes: AttributeMapping,
@@ -107,6 +109,7 @@ impl TryFrom<RawConfig> for Config {
         Ok(Config {
             server_url: config.server_url,
             internal_url: config.internal_url,
+            #[cfg(feature = "sentry")]
             sentry_dsn: config.sentry_dsn,
             ui_irma_url: config.ui_irma_url,
             attributes: config.attributes,
@@ -180,6 +183,7 @@ impl Config {
         &self.internal_url
     }
 
+    #[cfg(feature = "sentry")]
     pub fn sentry_dsn(&self) -> Option<&str> {
         self.sentry_dsn.as_deref()
     }

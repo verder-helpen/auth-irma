@@ -168,7 +168,7 @@ async fn decorated_continue(
     let auth_result =
         sign_and_encrypt_auth_result(&auth_result, config.signer(), config.encrypter())?;
 
-    if continuation.find('?') != None {
+    if continuation.find('?').is_some() {
         Ok(Redirect::to(format!(
             "{}&result={}",
             continuation, auth_result
@@ -311,6 +311,8 @@ fn rocket() -> _ {
     let config = config::Config::from_reader(&configfile)
         // Drop error value, as it could contain secrets
         .unwrap_or_else(|_| panic!("Could not read configuration"));
+
+    #[allow(unused_mut)]
     let mut base = rocket::build().mount(
         "/",
         routes![
@@ -320,9 +322,10 @@ fn rocket() -> _ {
             auth_ui
         ],
     );
-    if let Some(sentry_dsn) = config.sentry_dsn() {
+    #[cfg(feature = "sentry")]
+    if let Some(dsn) = config.sentry_dsn() {
         base = base.attach(verder_helpen_sentry::SentryFairing::new(
-            sentry_dsn,
+            dsn,
             "auth-irma",
         ));
     }
