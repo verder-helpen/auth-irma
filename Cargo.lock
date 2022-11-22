@@ -2161,7 +2161,7 @@ dependencies = [
 [[package]]
 name = "verder-helpen-sentry"
 version = "0.1.0"
-source = "git+https://github.com/verder-helpen/verder-helpen-sentry.git#2acc946838b97453e60abbcd221040ada6fb226a"
+source = "git+https://github.com/verder-helpen/verder-helpen-sentry.git#0392488f07f145dd8c8d031dd0d5ac633fd32df8"
 dependencies = [
  "env_logger",
  "log",
