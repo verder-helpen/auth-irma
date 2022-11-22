@@ -324,10 +324,7 @@ fn rocket() -> _ {
     );
     #[cfg(feature = "sentry")]
     if let Some(dsn) = config.sentry_dsn() {
-        base = base.attach(verder_helpen_sentry::SentryFairing::new(
-            dsn,
-            "auth-irma",
-        ));
+        base = base.attach(verder_helpen_sentry::SentryFairing::new(dsn, "auth-irma"));
     }
     base.manage(config)
 }
