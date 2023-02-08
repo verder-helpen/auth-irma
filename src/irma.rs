@@ -190,7 +190,7 @@ impl IrmaServer {
         let client = reqwest::Client::new();
 
         let mut session_request = client
-            .post(&format!("{}/session", self.server_url))
+            .post(format!("{}/session", self.server_url))
             .json(request);
 
         if let Some(token) = &self.auth_token {
@@ -218,7 +218,7 @@ impl IrmaServer {
         };
         let client = reqwest::Client::new();
         let mut session_request = client
-            .post(&format!("{}/session", self.server_url))
+            .post(format!("{}/session", self.server_url))
             .json(&extended_request);
 
         if let Some(token) = &self.auth_token {

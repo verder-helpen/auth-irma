@@ -37,11 +37,11 @@ impl From<verder_helpen_jwt::Error> for Error {
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::UnknownAttribute(a) => f.write_fmt(format_args!("Unknown attribute {}", a)),
+            Error::UnknownAttribute(a) => f.write_fmt(format_args!("Unknown attribute {a}")),
             Error::Yaml(e) => e.fmt(f),
             Error::NotMatching(desc) => f.write_str(desc),
             Error::InvalidResponse(desc) => {
-                f.write_fmt(format_args!("Invalid irma response: {}", desc))
+                f.write_fmt(format_args!("Invalid irma response: {desc}"))
             }
             Error::Json(e) => e.fmt(f),
             Error::Jwt(e) => e.fmt(f),
