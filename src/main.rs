@@ -169,15 +169,9 @@ async fn decorated_continue(
         sign_and_encrypt_auth_result(&auth_result, config.signer(), config.encrypter())?;
 
     if continuation.find('?').is_some() {
-        Ok(Redirect::to(format!(
-            "{}&result={}",
-            continuation, auth_result
-        )))
+        Ok(Redirect::to(format!("{continuation}&result={auth_result}")))
     } else {
-        Ok(Redirect::to(format!(
-            "{}?result={}",
-            continuation, auth_result
-        )))
+        Ok(Redirect::to(format!("{continuation}?result={auth_result}")))
     }
 }
 
@@ -239,7 +233,7 @@ async fn start_oob(
     let callback_url = format!(
         "{}/session_complete/{}/{}",
         config.internal_url(),
-        base64::encode_config(&serde_json::to_vec(&request.attributes)?, URL_SAFE),
+        base64::encode_config(serde_json::to_vec(&request.attributes)?, URL_SAFE),
         base64::encode_config(attr_url, URL_SAFE)
     );
 
@@ -252,7 +246,7 @@ async fn start_oob(
         client_url: format!(
             "{}/auth/{}/{}",
             config.server_url(),
-            base64::encode_config(&session.qr, URL_SAFE),
+            base64::encode_config(session.qr, URL_SAFE),
             base64::encode_config(&request.continuation, URL_SAFE),
         ),
     }))
@@ -266,7 +260,7 @@ async fn start_ib(
     let continuation_url = format!(
         "{}/decorated_continue/{}/{}",
         config.server_url(),
-        base64::encode_config(&serde_json::to_vec(&request.attributes)?, URL_SAFE),
+        base64::encode_config(serde_json::to_vec(&request.attributes)?, URL_SAFE),
         base64::encode_config(&request.continuation, URL_SAFE)
     );
 
