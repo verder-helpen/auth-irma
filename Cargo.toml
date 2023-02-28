@@ -12,15 +12,15 @@ verder-helpen-jwt = { git = "https://github.com/verder-helpen/verder-helpen-jwt.
 verder-helpen-proto = { git = "https://github.com/verder-helpen/verder-helpen-proto.git" }
 log = "0.4.17"
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
-serde = "1.0.137"
-serde_json = "1.0.81"
-serde_yaml = "0.9.13"
-strum = "0.24.0"
-strum_macros = "0.24.0"
-reqwest = { version = "0.11.10", features = ["json"] }
-urlencoding = "2.1.0"
-base64 = "0.13.0"
-josekit = "0.8.0"
+serde = "1.0.147"
+serde_json = "1.0.87"
+serde_yaml = "0.9.14"
+strum = "0.24.1"
+strum_macros = "0.24.3"
+reqwest = { version = "0.11.12", features = ["json"] }
+urlencoding = "2.1.2"
+base64 = "0.13.1"
+josekit = "0.8.1"
 askama = "0.11.1"
 
 [features]
