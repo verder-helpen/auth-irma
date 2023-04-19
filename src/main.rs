@@ -1,16 +1,16 @@
+use std::{error::Error as StdError, fmt::Display, fs::File};
+
 use askama::Template;
 use base64::URL_SAFE;
 use irma::{IrmaDisclosureRequest, IrmaRequest};
-use rocket::{get, launch, post, response::Redirect, routes, serde::json::Json, State};
-use serde::Deserialize;
-use std::{error::Error as StdError, fmt::Display, fs::File};
-use verder_helpen_jwt::sign_and_encrypt_auth_result;
-use verder_helpen_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
-
 use josekit::{
     jws::JwsHeader,
     jwt::{self, JwtPayload},
 };
+use rocket::{get, launch, post, response::Redirect, routes, serde::json::Json, State};
+use serde::Deserialize;
+use verder_helpen_jwt::sign_and_encrypt_auth_result;
+use verder_helpen_proto::{AuthResult, AuthStatus, StartAuthRequest, StartAuthResponse};
 
 mod config;
 mod irma;
@@ -159,7 +159,7 @@ async fn decorated_continue(
 
     let session_result = config.irma_server().get_result(&token).await?;
 
-    //let attributes = config.map_response(&attributes, session_result)?;
+    // let attributes = config.map_response(&attributes, session_result)?;
     let auth_result = AuthResult {
         status: AuthStatus::Success,
         attributes: Some(config.map_response(&attributes, session_result)?),

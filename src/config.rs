@@ -1,8 +1,8 @@
-use serde::Deserialize;
 use std::{collections::HashMap, convert::TryFrom, error::Error as StdError, fmt::Display};
-use verder_helpen_jwt::{EncryptionKeyConfig, SignKeyConfig};
 
 use josekit::{jwe::JweEncrypter, jws::JwsSigner};
+use serde::Deserialize;
+use verder_helpen_jwt::{EncryptionKeyConfig, SignKeyConfig};
 
 type AttributeMapping = HashMap<String, Vec<String>>;
 
@@ -102,9 +102,11 @@ pub struct Config {
     signer: Box<dyn JwsSigner>,
 }
 
-// This try_from will no longer be needed once support for field try_from lands in serde
+// This try_from will no longer be needed once support for field try_from lands
+// in serde
 impl TryFrom<RawConfig> for Config {
     type Error = Error;
+
     fn try_from(config: RawConfig) -> Result<Config, Error> {
         Ok(Config {
             server_url: config.server_url,
