@@ -1,5 +1,6 @@
-use serde::{Deserialize, Serialize};
 use std::{convert::TryFrom, error::Error as StdError, fmt::Display};
+
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum Error {
