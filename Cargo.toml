@@ -10,13 +10,13 @@ verder-helpen-proto = { git = "https://github.com/verder-helpen/verder-helpen-pr
 verder-helpen-sentry = { git = "https://github.com/verder-helpen/verder-helpen-sentry.git", optional = true }
 askama = "0.11.1"
 base64 = "0.13.1"
-josekit = "0.8.1"
+josekit = "0.8.3"
 log = "0.4.17"
-reqwest = { version = "0.11.12", features = ["json"] }
-rocket = { version = "0.5.0-rc.2", features = ["json"] }
-serde = "1.0.147"
-serde_json = "1.0.87"
-serde_yaml = "0.9.14"
+reqwest = { version = "0.11.16", features = ["json"] }
+rocket = { version = "0.5.0-rc.3", features = ["json"] }
+serde = "1.0.160"
+serde_json = "1.0.96"
+serde_yaml = "0.9.21"
 strum = "0.24.1"
 strum_macros = "0.24.3"
 
